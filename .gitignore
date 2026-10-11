@@ -1,0 +1,23 @@
+# Secrets — never commit
+.env
+.env.local
+.env.*.local
+
+# Python
+venv/
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+*.egg-info/
+.mypy_cache/
+.ruff_cache/
+
+# App data (uploads, vectors, registry)
+data/
+
+# Streamlit / tooling
+.streamlit/
+.DS_Store
+dist/
+*.log
