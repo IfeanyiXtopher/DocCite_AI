@@ -1,4 +1,4 @@
-"""Extract text from uploaded files (PDF first in Step 2)."""
+"""Extract text from uploaded files (PDF, DOCX, TXT, MD)."""
 
 from __future__ import annotations
 
@@ -6,8 +6,11 @@ from dataclasses import dataclass
 from pathlib import Path
 
 import pymupdf as fitz
+from docx import Document as DocxDocument
 
 from src.models import FileType
+
+MIN_TEXT_CHARS = 20
 
 
 class ExtractError(Exception):
@@ -18,7 +21,7 @@ class ExtractError(Exception):
 class PageText:
     """One page (or block) of extracted text."""
 
-    page: int | None  # 1-based for PDF; None for non-PDF later
+    page: int | None  # 1-based for PDF; None for DOCX/TXT/MD
     text: str
 
 
@@ -43,7 +46,7 @@ def detect_file_type(path: Path) -> FileType:
 
 
 def extract_file(path: Path) -> ExtractedDocument:
-    """Dispatch by extension. Step 2 implements PDF only."""
+    """Dispatch by extension."""
     path = Path(path)
     if not path.is_file():
         raise ExtractError(f"File not found: {path}")
@@ -51,9 +54,11 @@ def extract_file(path: Path) -> ExtractedDocument:
     file_type = detect_file_type(path)
     if file_type == "pdf":
         return extract_pdf(path)
-    raise ExtractError(
-        f"{file_type.upper()} extraction lands in Step 4. For now use a PDF."
-    )
+    if file_type == "docx":
+        return extract_docx(path)
+    if file_type in ("txt", "md"):
+        return extract_text_file(path, file_type=file_type)
+    raise ExtractError(f"Unsupported file type: {file_type}")
 
 
 def extract_pdf(path: Path) -> ExtractedDocument:
@@ -84,4 +89,43 @@ def extract_pdf(path: Path) -> ExtractedDocument:
         file_type="pdf",
         pages=pages,
         page_count=page_count,
+    )
+
+
+def extract_docx(path: Path) -> ExtractedDocument:
+    try:
+        document = DocxDocument(str(path))
+    except Exception as exc:  # noqa: BLE001
+        raise ExtractError(f"Could not open DOCX: {exc}") from exc
+
+    paragraphs = [p.text.strip() for p in document.paragraphs if p.text and p.text.strip()]
+    text = "\n\n".join(paragraphs)
+    if len(text.strip()) < MIN_TEXT_CHARS:
+        raise ExtractError("No extractable text.")
+
+    return ExtractedDocument(
+        file_type="docx",
+        pages=[PageText(page=None, text=text)],
+        page_count=None,
+    )
+
+
+def extract_text_file(path: Path, *, file_type: FileType) -> ExtractedDocument:
+    try:
+        text = path.read_text(encoding="utf-8")
+    except UnicodeDecodeError:
+        try:
+            text = path.read_text(encoding="latin-1")
+        except Exception as exc:  # noqa: BLE001
+            raise ExtractError(f"Could not read text file: {exc}") from exc
+    except Exception as exc:  # noqa: BLE001
+        raise ExtractError(f"Could not read text file: {exc}") from exc
+
+    if len(text.strip()) < MIN_TEXT_CHARS:
+        raise ExtractError("No extractable text.")
+
+    return ExtractedDocument(
+        file_type=file_type,
+        pages=[PageText(page=None, text=text)],
+        page_count=None,
     )

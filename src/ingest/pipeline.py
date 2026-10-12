@@ -20,6 +20,7 @@ from src.store import registry
 logger = logging.getLogger(__name__)
 
 MAX_FILE_BYTES = 25 * 1024 * 1024
+SUPPORTED_SUFFIXES = {".pdf", ".docx", ".txt", ".md"}
 
 
 @dataclass
@@ -36,10 +37,30 @@ def _safe_filename(name: str) -> str:
     return Path(name).name.replace("/", "_").replace("\\", "_")
 
 
+def _invalidate_summary_cache() -> None:
+    path = settings.data_dir / "summary.json"
+    path.unlink(missing_ok=True)
+
+
+def _remove_existing_by_filename(filename: str, store: chroma_mod.ChromaStore) -> None:
+    """Replace semantics: drop prior vectors + registry row + stored file."""
+    existing = registry.find_by_filename(filename)
+    if not existing:
+        return
+    logger.info("Replacing existing document filename=%s doc_id=%s", filename, existing.doc_id)
+    try:
+        store.delete_by_doc_id(existing.doc_id)
+    except Exception:  # noqa: BLE001
+        logger.warning("delete_by_doc_id failed for %s", existing.doc_id)
+    old_path = Path(existing.stored_path)
+    old_path.unlink(missing_ok=True)
+    registry.delete_document(existing.doc_id)
+
+
 def ingest_file(source_path: Path | str) -> IngestResult:
     """Ingest a single file into Chroma + registry.
 
-    All-or-nothing per doc_id: on embed failure, delete any chunks already written.
+    Duplicate filename replaces the previous document. All-or-nothing per doc_id.
     """
     source_path = Path(source_path)
     settings.ensure_data_dirs()
@@ -56,13 +77,16 @@ def ingest_file(source_path: Path | str) -> IngestResult:
     stored_path = settings.upload_dir / f"{doc_id}_{filename}"
 
     t0 = time.perf_counter()
-    shutil.copy2(source_path, stored_path)
 
     try:
         file_type = detect_file_type(source_path)
     except ExtractError as exc:
-        stored_path.unlink(missing_ok=True)
         raise ValueError(str(exc)) from exc
+
+    store = chroma_mod.ChromaStore()
+    _remove_existing_by_filename(filename, store)
+
+    shutil.copy2(source_path, stored_path)
 
     doc = Document(
         doc_id=doc_id,
@@ -75,7 +99,6 @@ def ingest_file(source_path: Path | str) -> IngestResult:
     )
     registry.upsert_document(doc)
 
-    store = chroma_mod.ChromaStore()
     timings: dict[str, float] = {}
 
     try:
@@ -97,6 +120,7 @@ def ingest_file(source_path: Path | str) -> IngestResult:
         doc.ingested_at = _utc_now()
         doc.error = None
         registry.upsert_document(doc)
+        _invalidate_summary_cache()
 
         timings["total_ms"] = (time.perf_counter() - t0) * 1000
         logger.info(
@@ -119,7 +143,35 @@ def ingest_file(source_path: Path | str) -> IngestResult:
             store.delete_by_doc_id(doc_id)
         except Exception:  # noqa: BLE001
             logger.warning("Rollback delete_by_doc_id failed for %s", doc_id)
+        stored_path.unlink(missing_ok=True)
         doc.status = "failed"
         doc.error = str(exc)
         registry.upsert_document(doc)
         raise
+
+
+def ingest_path(path: Path | str) -> list[IngestResult]:
+    """Ingest a file or every supported file in a directory (non-recursive)."""
+    path = Path(path)
+    if path.is_file():
+        return [ingest_file(path)]
+    if not path.is_dir():
+        raise FileNotFoundError(f"Path not found: {path}")
+
+    files = sorted(
+        p for p in path.iterdir() if p.is_file() and p.suffix.lower() in SUPPORTED_SUFFIXES
+    )
+    if not files:
+        raise ValueError(f"No supported files in directory: {path}")
+
+    results: list[IngestResult] = []
+    errors: list[str] = []
+    for file_path in files:
+        try:
+            results.append(ingest_file(file_path))
+        except Exception as exc:  # noqa: BLE001
+            errors.append(f"{file_path.name}: {exc}")
+            logger.error("Skipping %s: %s", file_path.name, exc)
+    if not results and errors:
+        raise RuntimeError("All ingest attempts failed:\n" + "\n".join(errors))
+    return results

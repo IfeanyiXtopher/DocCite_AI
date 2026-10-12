@@ -96,6 +96,28 @@ class ChromaStore:
         # Chroma where filter
         self._collection.delete(where={"doc_id": doc_id})
 
+    def get_chunks_for_doc(self, doc_id: str) -> list[QueryHit]:
+        """Return stored chunks for one document (for summary sampling)."""
+        result = self._collection.get(
+            where={"doc_id": doc_id},
+            include=["documents", "metadatas"],
+        )
+        hits: list[QueryHit] = []
+        ids = result.get("ids") or []
+        docs = result.get("documents") or []
+        metas = result.get("metadatas") or []
+        for chunk_id, text, meta in zip(ids, docs, metas, strict=True):
+            hits.append(
+                QueryHit(
+                    chunk_id=chunk_id,
+                    text=text or "",
+                    metadata=dict(meta or {}),
+                    score=0.0,
+                )
+            )
+        hits.sort(key=lambda h: int(h.metadata.get("chunk_index", 0)))
+        return hits
+
     def delete_collection(self) -> None:
         name = settings.collection_name
         self._client.delete_collection(name)

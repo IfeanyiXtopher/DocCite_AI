@@ -31,8 +31,10 @@ Product rules that every later step obeys (see `APPROACH.md` §1.2–1.4):
 
 ## Current position
 
-> **Step 3 — Ask one question (CLI): `[x]` done.**
-> Next: **Step 4 — Multi-file library, summary, reset.**
+> **Step 4 — Multi-file library, summary, reset: `[x]` done.**
+> Next: **Step 5 — Streamlit UI.**
+> Note: `.env` lines 18–20 are not `KEY=value` yet (email paste) — fix format
+> when you want mail; not required for Steps 5–6.
 
 ## Prerequisites on the developer machine
 
@@ -213,39 +215,37 @@ Empty collection → “Upload documents first.” Citations from retriever meta
 
 ---
 
-## Step 4 — Multi-file library, summary, reset `[ ]`
+## Step 4 — Multi-file library, summary, reset `[x]`
 
 **Goal.** Real library behavior: four file types, replace-on-duplicate,
 sampled library summary, full reset.
 
-1. `[ ]` 4.1 DOCX / TXT / MD extractors in `extract.py`; unsupported → failed
+1. `[x]` 4.1 DOCX / TXT / MD extractors in `extract.py`; unsupported → failed
    “Unsupported file type”; empty text → failed; max **25 MB** enforced.
-2. `[ ]` 4.2 Pipeline accepts file or directory; duplicate filename → delete
-   old chunks + replace (`APPROACH.md` §6.5); `delete_by_doc_id` used on
-   replace and failed rollback.
-3. `[ ]` 4.3 `src/rag/summarize.py` — sample first + middle chunk per doc; LLM
+2. `[x]` 4.2 Pipeline accepts file or directory; duplicate filename → delete
+   old chunks + replace; `delete_by_doc_id` on replace and failed rollback.
+3. `[x]` 4.3 `src/rag/summarize.py` — sample first + middle chunk per doc; LLM
    bullets; cache (`data/summary.json` keyed by hash of ready `doc_id`s).
-4. `[ ]` 4.4 `scripts/summarize.py`, `scripts/reset.py` (wipe Chroma, uploads,
+4. `[x]` 4.4 `scripts/summarize.py`, `scripts/reset.py` (wipe Chroma, uploads,
    registry, summary cache).
-5. `[ ]` 4.5 Ingest two PDFs + one TXT; summarize; ask a question answered only
-   by doc A and one only by doc B; reset → count 0, uploads gone.
-6. `[ ]` 4.6 `tests/test_unsupported.py` (and any multi-type extract coverage).
+5. `[x]` 4.5 Ingested fixtures (2 PDFs + TXT + MD + DOCX); summarize; asked
+   DELTA-TOKEN-3 and ZEBRA-TOKEN-9; reset → count 0, uploads gone.
+6. `[x]` 4.6 `tests/test_unsupported.py` (+ multi-type extract coverage).
 
-**Artifact.** Multi-type ingest, summary CLI, reset CLI, replace semantics.
+**Artifact.** Multi-type ingest, summary CLI, reset CLI, replace semantics,
+extra fixtures under `tests/fixtures/`.
 
-**Verify.**
+**Verify.** Passed 2026-10-12:
 
 ```bash
-python scripts/ingest.py tests/fixtures/   # or individual files
-python scripts/summarize.py
-python scripts/ask.py "<doc-A question>"
-python scripts/ask.py "<doc-B question>"
+pytest -q   # 15 passed (unit suite)
 python scripts/reset.py
-pytest -q
+python scripts/ingest.py tests/fixtures/
+python scripts/summarize.py
+python scripts/ask.py "What is DELTA-TOKEN-3?"
+python scripts/ask.py "Where does ZEBRA-TOKEN-9 appear?"
+python scripts/reset.py   # chroma=0, docs=0, uploads=0
 ```
-
-All four types happy-path; unsupported / oversize fail cleanly; summary does
-not invent unread content.
 
 ---
 
@@ -433,6 +433,8 @@ without its own Verify.
 | 2026-10-12 | 2 | PDF ingest path live: extract/clean/chunk/Chroma/registry + CLI. Fixture PDF with page tokens. 4 unit tests green; ingest → 2 chunks; `BRAVO-TOKEN-9` retrieves page 2; persist survives reopen. |
 | 2026-10-12 | 2 | Commit `f550de6` Step 2 PDF ingest. |
 | 2026-10-12 | 3 | Retrieve + grounded QA CLI. 7 unit tests green. Live: BRAVO question cites page 2; France refuses without LLM call. |
+| 2026-10-12 | 3 | Commit `728de89` Step 3 Q&A. |
+| 2026-10-12 | 4 | Multi-type ingest (pdf/docx/txt/md), summary cache, reset. 15 unit tests green. Folder ingest + cross-doc ask + wipe verified. `.env` lines 18–20 not KEY=value (email paste) — parked; template in `.env.example`. |
 
 ---
 
