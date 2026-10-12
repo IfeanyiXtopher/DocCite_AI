@@ -79,8 +79,32 @@ docs/         # BUILD_PLAN + ADRs
 data/         # gitignored uploads + vectors (created on your machine)
 ```
 
+## API (Step 7 — multi-user)
+
+```bash
+source venv/bin/activate
+python scripts/run_api.py
+# http://127.0.0.1:8000/docs  (OpenAPI)
+```
+
+| Auth | Effect |
+| --- | --- |
+| `POST /auth/guest` | Temporary `owner_id`; purged after `GUEST_INACTIVITY_TTL_HOURS` idle |
+| `POST /auth/register` / `/auth/login` | Durable library until you clear it |
+| Header | `X-DocCite-Session: <token>` (or `Authorization: Bearer <token>`) |
+
+Purge inactive guests (cron in production):
+
+```bash
+python scripts/purge_guests.py
+# or POST /admin/purge-guests with header X-Admin-Secret: $AUTH_SECRET
+```
+
+Streamlit remains the local single-user demo. Multi-user clients should use the API.
+
 ## Product direction (short)
 
 - **Steps 0–6:** local single-user MVP (Streamlit + Chroma on disk).
-- **Step 7+:** FastAPI + database; **guests** auto-cleared after inactivity;
+- **Step 7:** FastAPI + SQLite; **guests** auto-cleared after inactivity;
   **logged-in** data stays until the user clears it.
+- **Step 8+:** production-shaped frontend against the API.

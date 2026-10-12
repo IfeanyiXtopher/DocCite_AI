@@ -116,7 +116,7 @@ def ingest_file(
         timings["chunk_ms"] = (time.perf_counter() - t_chunk) * 1000
 
         t_embed = time.perf_counter()
-        store.add_chunks(chunks)
+        store.add_chunks(chunks, owner_id="local:mvp")
         timings["embed_upsert_ms"] = (time.perf_counter() - t_embed) * 1000
 
         doc.page_count = extracted.page_count

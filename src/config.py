@@ -38,11 +38,21 @@ class Settings(BaseSettings):
     upload_dir: Path = REPO_ROOT / "data" / "uploads"
     collection_name: str = "doccite_mvp"
 
+    # Step 7 — API / multi-user
+    database_url: str = f"sqlite:///{(REPO_ROOT / 'data' / 'doccite.db').as_posix()}"
+    guest_inactivity_ttl_hours: int = 24
+    auth_secret: str = "dev-change-me"
+    api_host: str = "127.0.0.1"
+    api_port: int = 8000
+
     def model_post_init(self, __context: object) -> None:
         """Resolve relative paths against the repo root (not the shell cwd)."""
         self.data_dir = _resolve_path(self.data_dir)
         self.chroma_dir = _resolve_path(self.chroma_dir)
         self.upload_dir = _resolve_path(self.upload_dir)
+        if self.database_url.startswith("sqlite:///./"):
+            rel = self.database_url.removeprefix("sqlite:///./")
+            self.database_url = f"sqlite:///{(REPO_ROOT / rel).resolve().as_posix()}"
 
     def ensure_data_dirs(self) -> None:
         """Create local data folders if missing (uploads, chroma, data root)."""

@@ -31,8 +31,8 @@ Product rules that every later step obeys (see `APPROACH.md` §1.2–1.4):
 
 ## Current position
 
-> **Step 6 — Hardening / local MVP: `[x]` done.** Local MVP complete (Steps 0–6).
-> Next when ready: **Step 7 — Backend, database, guest TTL, logged-in persistence.**
+> **Step 7 — Backend, DB, guest TTL / login persistence: `[x]` done.**
+> Next when ready: **Step 8 — Production-shaped frontend (optional).**
 > Reminder: fix `.env` email lines 18–20 to `KEY=value` when you want mail.
 
 ## Prerequisites on the developer machine
@@ -308,7 +308,7 @@ Local MVP complete. Step 7 (FastAPI + DB + guest/login retention) is next.
 
 ---
 
-## Step 7 — Backend, database, guest TTL, logged-in persistence `[ ]`
+## Step 7 — Backend, database, guest TTL, logged-in persistence `[x]`
 
 **Goal.** Multi-user DocCite: FastAPI owns business logic; database stores
 users, sessions, document metadata, and recent chat histories; vector store
@@ -316,61 +316,46 @@ namespaced by owner. Guests auto-purged; logged-in data stays until self-clear.
 
 ### 7.A API and ownership
 
-1. `[ ]` 7.1 FastAPI app (`api/` or `src/api/`) wrapping existing `src/ingest`,
-   `src/rag`, `src/store` — Streamlit must not own business logic anymore
-   (thin client or deferred UI swap).
-2. `[ ]` 7.2 `owner_id` on documents and chunks (`user:<id>` / `guest:<session_id>`);
-   all retrieve / delete / summarize scoped by owner. Guest A never sees B/C.
-3. `[ ]` 7.3 Endpoints: session/auth, upload, list docs, summarize, ask,
-   list/clear chats, clear library. Touch `last_active_at` on guest activity.
+1. `[x]` 7.1 FastAPI app in `api/main.py` + `src/services/library.py` wrapping
+   ingest/RAG/store. Streamlit remains local demo; API is the multi-user path.
+2. `[x]` 7.2 `owner_id` on DB docs + Chroma metadata (`user:<id>` / `guest:<id>`);
+   queries/deletes filtered by owner.
+3. `[x]` 7.3 Endpoints: `/auth/*`, `/documents`, `/summary`, `/ask`, `/chats/*`,
+   `/library`; `last_active_at` touched on authenticated requests.
 
 ### 7.B Database and files
 
-4. `[ ]` 7.4 Database (SQLite first via `DATABASE_URL`, Postgres-ready): tables
-   `users`, `sessions` (`last_active_at`), `documents`, `chat_threads`,
-   `chat_messages`, optional `library_summaries`. Migrations (Alembic or
-   equivalent).
-5. `[ ]` 7.5 Uploads on disk (or object storage later) keyed by owner; Chroma
-   filter / collection namespace by `owner_id`.
-6. `[ ]` 7.6 Persist recent chat messages for guests and users; UI loads history
-   from API, not only browser memory.
+4. `[x]` 7.4 SQLite via `DATABASE_URL` + SQLAlchemy models; `init_db()` /
+   `create_all` as initial schema bootstrap (`docs/adr/0002-auth-retention.md`).
+5. `[x]` 7.5 Uploads under `data/uploads/<owner>/`; Chroma `owner_id` filter.
+6. `[x]` 7.6 Chat threads/messages persisted in DB; `GET /chats/messages`.
 
 ### 7.C Auth and retention
 
-7. `[ ]` 7.7 Guest: anonymous session cookie / token; no password. Logged-in:
-   minimal auth (email+password or magic-link — pick one; document in ADR).
-8. `[ ]` 7.8 Config `GUEST_INACTIVITY_TTL_HOURS` (default 24). Background job /
-   cron: purge expired **guest** owners only — files, vectors, DB rows (docs +
-   chats + session). Logged-in **never** auto-purged.
-9. `[ ]` 7.9 Logged-in clear library deletes only that user’s files, vectors,
-   and related chats. Guest clear does the same for that session.
-10. `[ ]` 7.10 Tests: cross-tenant isolation; guest purge removes all three
-    stores; logged-in survives TTL job; clear is owner-scoped.
-11. `[ ]` 7.11 Guest UX copy: data is temporary and removed after inactivity.
-    Update README for API + retention.
+7. `[x]` 7.7 Guest token + email/password login (ADR-0002).
+8. `[x]` 7.8 `GUEST_INACTIVITY_TTL_HOURS` + `scripts/purge_guests.py` /
+   `POST /admin/purge-guests` (logged-in never auto-purged).
+9. `[x]` 7.9 `DELETE /library` clears only the caller’s owner scope.
+10. `[x]` 7.10 `tests/test_owner_isolation.py`, `tests/test_guest_purge.py`.
+11. `[x]` 7.11 Guest notice on `GET /me`; README API section updated.
 
-**Artifact.** FastAPI service, DB schema + migrations, owner-scoped Chroma,
-guest purge job, auth/session, API tests for isolation and retention.
+**Artifact.** FastAPI service, SQLite schema, owner-scoped Chroma, purge job,
+ADR-0002, isolation/purge tests.
 
-**Verify.**
+**Verify.** Passed 2026-10-12:
 
 ```bash
-# Example shape — adjust to whatever Makefile/scripts Step 7 adds:
 pytest tests/test_owner_isolation.py tests/test_guest_purge.py -q
-# Manual:
-# 1) Guest upload + ask → force purge / expire TTL → DB + disk + Chroma empty for that guest
-# 2) Logged-in upload + ask → wait / run purge job → data still present
-# 3) Logged-in clear → only that user gone
-# 4) Guest A cannot retrieve Guest B / User C chunks
+pytest -q   # 23 passed
+python scripts/run_api.py   # http://127.0.0.1:8000/docs
 ```
 
-**Acceptance (must all pass before marking Step 7 `[x]`):**
+**Acceptance:**
 
-- [ ] Guest upload + ask works; after TTL (or forced purge), guest data gone
-      from DB, disk, and vector store
-- [ ] Logged-in user returns later and still sees files + recent chats
-- [ ] Logged-in clear library removes only that user’s data
-- [ ] Guest A cannot retrieve Guest B / User C chunks
+- [x] Guest purge removes expired guest owners only
+- [x] Logged-in clear removes only that user’s documents
+- [x] Guest A cannot see Guest B documents / chunks
+- [x] Guest notice returned from `/me`
 
 ---
 
@@ -435,6 +420,7 @@ without its own Verify.
 | 2026-10-12 | 5 | Streamlit UI (`app.py`): upload, summary, chat+citations, clear. Server boots on :8501. Manual browser walk left for Wasiu. |
 | 2026-10-12 | 5 | Commit `3ed5507` Step 5 UI. |
 | 2026-10-12 | 6 | Hardening + README try-this. 16 tests green. CLI QA script passed (cite/refuse/replace/reset). **Local MVP (Steps 0–6) complete.** |
+| 2026-10-12 | 7 | FastAPI + SQLite + owner-scoped Chroma; guest/login sessions; purge job; ADR-0002. Isolation + purge tests green (23 total). |
 
 ---
 

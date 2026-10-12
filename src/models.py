@@ -39,6 +39,7 @@ class Chunk(BaseModel):
     page: Optional[int] = None
     chunk_index: int
     text: str
+    owner_id: Optional[str] = None
 
 
 class Citation(BaseModel):

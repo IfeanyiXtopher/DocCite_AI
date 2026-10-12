@@ -1,4 +1,4 @@
-"""ChromaDB persistence for document chunks."""
+"""ChromaDB persistence for document chunks (optionally owner-scoped)."""
 
 from __future__ import annotations
 
@@ -15,6 +15,8 @@ logger = logging.getLogger(__name__)
 
 # Chroma metadata must be scalars. Missing PDF page → page=0 + has_page=False.
 PAGE_SENTINEL = 0
+# Local CLI/Streamlit chunks without multi-user owner.
+LOCAL_OWNER = "local:mvp"
 
 
 @dataclass
@@ -30,7 +32,6 @@ class ChromaStore:
 
     def __init__(self) -> None:
         settings.ensure_data_dirs()
-        # Import here so unit tests that only need extract/chunk stay lighter.
         import chromadb
         from chromadb.config import Settings as ChromaSettings
 
@@ -47,16 +48,20 @@ class ChromaStore:
             api_key=settings.openai_api_key,
         )
 
-    def count(self) -> int:
-        return int(self._collection.count())
+    def count(self, *, owner_id: str | None = None) -> int:
+        if not owner_id:
+            return int(self._collection.count())
+        result = self._collection.get(where={"owner_id": owner_id}, include=[])
+        return len(result.get("ids") or [])
 
-    def add_chunks(self, chunks: list[Chunk]) -> None:
+    def add_chunks(self, chunks: list[Chunk], *, owner_id: str | None = None) -> None:
         if not chunks:
             return
+        owner = owner_id or LOCAL_OWNER
         texts = [c.text for c in chunks]
         ids = [c.chunk_id for c in chunks]
-        metadatas = [_chunk_metadata(c) for c in chunks]
-        logger.info("Embedding %s chunks…", len(chunks))
+        metadatas = [_chunk_metadata(c, owner) for c in chunks]
+        logger.info("Embedding %s chunks (owner=%s)…", len(chunks), owner)
         vectors = self._embeddings.embed_documents(texts)
         self._collection.upsert(
             ids=ids,
@@ -64,18 +69,33 @@ class ChromaStore:
             metadatas=metadatas,
             embeddings=vectors,
         )
-        logger.info("Upserted %s chunks (collection count=%s)", len(chunks), self.count())
+        logger.info(
+            "Upserted %s chunks (owner=%s collection_count=%s)",
+            len(chunks),
+            owner,
+            self.count(),
+        )
 
-    def query(self, query_text: str, k: Optional[int] = None) -> list[QueryHit]:
+    def query(
+        self,
+        query_text: str,
+        k: Optional[int] = None,
+        *,
+        owner_id: str | None = None,
+    ) -> list[QueryHit]:
         k = k if k is not None else settings.retrieve_top_k
-        if self.count() == 0:
+        owner_count = self.count(owner_id=owner_id) if owner_id else self.count()
+        if owner_count == 0:
             return []
         vector = self._embeddings.embed_query(query_text)
-        result = self._collection.query(
-            query_embeddings=[vector],
-            n_results=min(k, self.count()),
-            include=["documents", "metadatas", "distances"],
-        )
+        kwargs: dict[str, Any] = {
+            "query_embeddings": [vector],
+            "n_results": min(k, owner_count),
+            "include": ["documents", "metadatas", "distances"],
+        }
+        if owner_id:
+            kwargs["where"] = {"owner_id": owner_id}
+        result = self._collection.query(**kwargs)
         hits: list[QueryHit] = []
         ids = result.get("ids", [[]])[0]
         docs = result.get("documents", [[]])[0]
@@ -92,16 +112,27 @@ class ChromaStore:
             )
         return hits
 
-    def delete_by_doc_id(self, doc_id: str) -> None:
-        # Chroma where filter
-        self._collection.delete(where={"doc_id": doc_id})
+    def delete_by_doc_id(self, doc_id: str, *, owner_id: str | None = None) -> None:
+        if owner_id:
+            self._collection.delete(
+                where={"$and": [{"doc_id": doc_id}, {"owner_id": owner_id}]}
+            )
+        else:
+            self._collection.delete(where={"doc_id": doc_id})
 
-    def get_chunks_for_doc(self, doc_id: str) -> list[QueryHit]:
+    def delete_by_owner(self, owner_id: str) -> None:
+        self._collection.delete(where={"owner_id": owner_id})
+
+    def get_chunks_for_doc(
+        self, doc_id: str, *, owner_id: str | None = None
+    ) -> list[QueryHit]:
         """Return stored chunks for one document (for summary sampling)."""
-        result = self._collection.get(
-            where={"doc_id": doc_id},
-            include=["documents", "metadatas"],
-        )
+        where: dict[str, Any]
+        if owner_id:
+            where = {"$and": [{"doc_id": doc_id}, {"owner_id": owner_id}]}
+        else:
+            where = {"doc_id": doc_id}
+        result = self._collection.get(where=where, include=["documents", "metadatas"])
         hits: list[QueryHit] = []
         ids = result.get("ids") or []
         docs = result.get("documents") or []
@@ -127,7 +158,7 @@ class ChromaStore:
         )
 
 
-def _chunk_metadata(chunk: Chunk) -> dict[str, Any]:
+def _chunk_metadata(chunk: Chunk, owner_id: str) -> dict[str, Any]:
     has_page = chunk.page is not None
     return {
         "doc_id": chunk.doc_id,
@@ -136,6 +167,7 @@ def _chunk_metadata(chunk: Chunk) -> dict[str, Any]:
         "page": int(chunk.page) if has_page else PAGE_SENTINEL,
         "has_page": has_page,
         "chunk_index": chunk.chunk_index,
+        "owner_id": owner_id,
     }
 
 
