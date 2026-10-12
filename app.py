@@ -42,6 +42,13 @@ def _init_state() -> None:
         st.session_state.last_ingest_note = ""
 
 
+def _trim_chat() -> None:
+    """Bound memory: keep only the newest messages."""
+    chat = st.session_state.chat
+    if len(chat) > MAX_CHAT_MESSAGES:
+        st.session_state.chat = chat[-MAX_CHAT_MESSAGES:]
+
+
 def _ready_docs():
     return [d for d in registry.list_documents() if d.status == "ready"]
 
@@ -169,6 +176,7 @@ def main() -> None:
             return
 
         st.session_state.chat.append({"role": "user", "content": question})
+        _trim_chat()
         with st.chat_message("user"):
             st.markdown(question)
 
@@ -178,6 +186,7 @@ def main() -> None:
                     result = answer(question)
                 payload = answer_to_message(result)
                 st.session_state.chat.append(payload)
+                _trim_chat()
                 if result.refused:
                     st.warning(result.text)
                 else:
@@ -194,6 +203,7 @@ def main() -> None:
                         "citations": [],
                     }
                 )
+                _trim_chat()
             except Exception as exc:  # noqa: BLE001
                 err = safe_error_message(exc)
                 st.error(err)
@@ -205,6 +215,7 @@ def main() -> None:
                         "citations": [],
                     }
                 )
+                _trim_chat()
 
 
 if __name__ == "__main__":

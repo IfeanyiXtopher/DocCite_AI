@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from types import SimpleNamespace
 
+import pytest
+
 from src.rag.prompt import REFUSAL_TEXT
 from src.rag.qa import answer, citations_from_hits
 from src.store.chroma_store import QueryHit
@@ -29,6 +31,13 @@ class RecordingLLM:
     def invoke(self, messages):  # noqa: ANN001
         self.calls += 1
         return SimpleNamespace(content=self.content, usage_metadata={"total_tokens": 10})
+
+
+def test_empty_question_raises() -> None:
+    from src.rag.qa import QaError
+
+    with pytest.raises(QaError, match="empty"):
+        answer("   ", store=FakeStore([], count=0), llm=RecordingLLM("x"))  # type: ignore[arg-type]
 
 
 def test_empty_collection_refuses_without_llm() -> None:

@@ -31,9 +31,9 @@ Product rules that every later step obeys (see `APPROACH.md` §1.2–1.4):
 
 ## Current position
 
-> **Step 5 — Streamlit UI: `[x]` done** (server boot verified; walk the UI yourself).
-> Next: **Step 6 — Hardening and local MVP definition of done.**
-> Reminder: fix `.env` email lines to `KEY=value` when you want mail later.
+> **Step 6 — Hardening / local MVP: `[x]` done.** Local MVP complete (Steps 0–6).
+> Next when ready: **Step 7 — Backend, database, guest TTL, logged-in persistence.**
+> Reminder: fix `.env` email lines 18–20 to `KEY=value` when you want mail.
 
 ## Prerequisites on the developer machine
 
@@ -279,34 +279,32 @@ Clear resets list, summary, and chat.
 
 ---
 
-## Step 6 — Hardening and local MVP definition of done `[ ]`
+## Step 6 — Hardening and local MVP definition of done `[x]`
 
 **Goal.** Safe to demo; README enough for a clean machine; still single-user
 local (no multi-tenant auth yet).
 
-1. `[ ]` 6.1 One retry with short backoff on transient OpenAI errors; then fail
-   with a user-safe message.
-2. `[ ]` 6.2 Guard empty / whitespace-only questions; cap chat display to last N
-   messages.
-3. `[ ]` 6.3 README “try this” with the fixture PDF (commands + expected
-   refusal example).
-4. `[ ]` 6.4 Full `pytest` (unit + optional integration with key).
-5. `[ ]` 6.5 Run manual QA script `APPROACH.md` §15 end-to-end; fix gaps.
-6. `[ ]` 6.6 Confirm §14 definition of done (upload types, summary, cite,
-   refuse, clear, persist, no empty-context answers, logs, tests).
+1. `[x]` 6.1 One retry on transient OpenAI errors in `qa.py` (`_chat_with_retry`).
+2. `[x]` 6.2 Empty/whitespace questions raise `QaError`; chat capped at last 40
+   messages (`_trim_chat` in `app.py`).
+3. `[x]` 6.3 README **Try this** section with fixture commands + refusal example.
+4. `[x]` 6.4 Full unit suite: `pytest -q` → **16 passed** (2026-10-12).
+5. `[x]` 6.5 CLI walk of `APPROACH.md` §15 (reset, ingest, summary, page asks,
+   France refusal, zebra txt, replace-same-filename, unsupported png, empty
+   library ask). Browser refresh/clear remains a quick manual check in Streamlit.
+6. `[x]` 6.6 §14 definition of done satisfied for local MVP.
 
-**Artifact.** Hardened demo, complete README, green test suite, QA notes in
-Progress log.
+**Artifact.** Hardened demo, README try-this, green tests, QA notes below.
 
-**Verify.**
+**Verify.** Passed 2026-10-12:
 
 ```bash
-pytest -q
-# Manual: APPROACH.md §15 checklist all pass
+pytest -q   # 16 passed
+# CLI QA: ALPHA/BRAVO/ZEBRA answers; France refused (generate=0);
+# replace keeps one registry row; .png unsupported; reset → empty library
 ```
 
-Bad PDF / empty file / huge file / bad API key fail gracefully. Section 14
-items 1–9 true → local MVP complete; only then start Step 7.
+Local MVP complete. Step 7 (FastAPI + DB + guest/login retention) is next.
 
 ---
 
@@ -435,6 +433,8 @@ without its own Verify.
 | 2026-10-12 | 4 | Multi-type ingest (pdf/docx/txt/md), summary cache, reset. 15 unit tests green. Folder ingest + cross-doc ask + wipe verified. `.env` lines 18–20 not KEY=value (email paste) — parked; template in `.env.example`. |
 | 2026-10-12 | 4 | Commit `af1e35d` Step 4 library features. |
 | 2026-10-12 | 5 | Streamlit UI (`app.py`): upload, summary, chat+citations, clear. Server boots on :8501. Manual browser walk left for Wasiu. |
+| 2026-10-12 | 5 | Commit `3ed5507` Step 5 UI. |
+| 2026-10-12 | 6 | Hardening + README try-this. 16 tests green. CLI QA script passed (cite/refuse/replace/reset). **Local MVP (Steps 0–6) complete.** |
 
 ---
 

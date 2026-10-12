@@ -32,14 +32,39 @@ Exact installed versions are recorded in `requirements.lock.txt` (from
 `pip freeze`). Prefer `pip install -r requirements.txt` for setup; use the lock
 file if you need a bit-for-bit match.
 
-## Run (filled in as we build)
+## Try this (local MVP)
 
-| When | Command |
+```bash
+cd DocCite
+source venv/bin/activate
+
+# 1) Reset and load the sample library
+python scripts/reset.py
+python scripts/ingest.py tests/fixtures/
+
+# 2) Summary
+python scripts/summarize.py
+
+# 3) In-domain question (expect a citation; PDF page when relevant)
+python scripts/ask.py "What does page two say about BRAVO-TOKEN-9?"
+
+# 4) Out-of-domain (expect refusal — no guessing)
+python scripts/ask.py "What is the capital of France?"
+
+# 5) Browser UI
+streamlit run app.py
+# open http://localhost:8501 — upload, ask, clear library
+```
+
+| Command | Purpose |
 | --- | --- |
-| Step 2+ | `python scripts/ingest.py tests/fixtures/two_page_fixture.pdf` |
-| Step 3+ | `python scripts/ask.py "What does page two say about BRAVO-TOKEN-9?"` |
-| Step 4+ | `python scripts/ingest.py tests/fixtures/` then `summarize.py` / `reset.py` |
-| Step 5+ | `source venv/bin/activate && streamlit run app.py` → http://localhost:8501 |
+| `python scripts/ingest.py path` | Ingest a file or folder |
+| `python scripts/summarize.py` | Library summary |
+| `python scripts/ask.py "…"` | Grounded Q&A |
+| `python scripts/reset.py` | Wipe local library |
+| `streamlit run app.py` | UI on http://localhost:8501 |
+
+**Single-user demo:** anyone who can open Streamlit on this machine sees the same local library. Multi-user auth + guest TTL arrive in Step 7.
 
 ## Layout (learning map)
 
