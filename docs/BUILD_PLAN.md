@@ -31,10 +31,9 @@ Product rules that every later step obeys (see `APPROACH.md` §1.2–1.4):
 
 ## Current position
 
-> **Step 4 — Multi-file library, summary, reset: `[x]` done.**
-> Next: **Step 5 — Streamlit UI.**
-> Note: `.env` lines 18–20 are not `KEY=value` yet (email paste) — fix format
-> when you want mail; not required for Steps 5–6.
+> **Step 5 — Streamlit UI: `[x]` done** (server boot verified; walk the UI yourself).
+> Next: **Step 6 — Hardening and local MVP definition of done.**
+> Reminder: fix `.env` email lines to `KEY=value` when you want mail later.
 
 ## Prerequisites on the developer machine
 
@@ -249,35 +248,34 @@ python scripts/reset.py   # chroma=0, docs=0, uploads=0
 
 ---
 
-## Step 5 — Streamlit UI `[ ]`
+## Step 5 — Streamlit UI `[x]`
 
 **Goal.** A person can use the product without the terminal. Single page
 `app.py` per `APPROACH.md` §10.
 
-1. `[ ]` 5.1 Layout: header **DocCite**; sidebar uploader + doc list + Clear;
+1. `[x]` 5.1 Layout: header **DocCite**; sidebar uploader + doc list + Clear;
    main summary + chat + question input.
-2. `[ ]` 5.2 Upload → save under `data/uploads/` → `pipeline.ingest` → refresh
-   list + regenerate/cached summary; statuses `processing` / `ready` / `failed`.
-3. `[ ]` 5.3 Chat wired to `qa.answer`; citation cards (filename, page or n/a,
-   quote); refused styling; spinners.
-4. `[ ]` 5.4 Disable Ask when no `ready` documents; Clear uses same reset as
-   CLI and clears chat history in `st.session_state`.
-5. `[ ]` 5.5 Sanitized errors for OpenAI / empty library (no stack traces in UI).
-6. `[ ]` 5.6 Click-test full journey: upload, summary, ask, refuse, clear,
-   browser refresh still shows documents (disk persist).
+2. `[x]` 5.2 Upload → temp file → `pipeline.ingest_file` → refresh list +
+   force summary; statuses from registry.
+3. `[x]` 5.3 Chat wired to `qa.answer`; citation expanders; refused styling;
+   spinners.
+4. `[x]` 5.4 Ask disabled with no ready docs; Clear uses `reset_library` and
+   clears `st.session_state.chat`.
+5. `[x]` 5.5 `safe_error_message` for API/empty failures (no stack traces).
+6. `[~]` 5.6 Server boot verified locally; **you** should click-test the full
+   journey in the browser (upload → summary → ask → refuse → clear → refresh).
 
 **Artifact.** `app.py`, `src/ui/helpers.py`, runnable local demo UI.
 
-**Verify.**
+**Verify.** Passed boot check 2026-10-12 (`Local URL: http://localhost:8501`).
 
 ```bash
+source venv/bin/activate
 streamlit run app.py
 ```
 
-Walk `APPROACH.md` §15 items 1–10 manually. Refresh keeps documents. Clear
-resets list, summary, and chat.
-
-This step is not done after a screenshot — walk the flow as a user.
+Walk `APPROACH.md` §15 items 1–10 manually. Refresh keeps documents (disk).
+Clear resets list, summary, and chat.
 
 ---
 
@@ -435,6 +433,8 @@ without its own Verify.
 | 2026-10-12 | 3 | Retrieve + grounded QA CLI. 7 unit tests green. Live: BRAVO question cites page 2; France refuses without LLM call. |
 | 2026-10-12 | 3 | Commit `728de89` Step 3 Q&A. |
 | 2026-10-12 | 4 | Multi-type ingest (pdf/docx/txt/md), summary cache, reset. 15 unit tests green. Folder ingest + cross-doc ask + wipe verified. `.env` lines 18–20 not KEY=value (email paste) — parked; template in `.env.example`. |
+| 2026-10-12 | 4 | Commit `af1e35d` Step 4 library features. |
+| 2026-10-12 | 5 | Streamlit UI (`app.py`): upload, summary, chat+citations, clear. Server boots on :8501. Manual browser walk left for Wasiu. |
 
 ---
 

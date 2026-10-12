@@ -39,7 +39,7 @@ file if you need a bit-for-bit match.
 | Step 2+ | `python scripts/ingest.py tests/fixtures/two_page_fixture.pdf` |
 | Step 3+ | `python scripts/ask.py "What does page two say about BRAVO-TOKEN-9?"` |
 | Step 4+ | `python scripts/ingest.py tests/fixtures/` then `summarize.py` / `reset.py` |
-| Step 5+ | `streamlit run app.py` |
+| Step 5+ | `source venv/bin/activate && streamlit run app.py` → http://localhost:8501 |
 
 ## Layout (learning map)
 
