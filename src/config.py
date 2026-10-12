@@ -1,1 +1,61 @@
-# Placeholder — implemented in a later build step.
+"""Typed settings loaded from environment / `.env`."""
+
+from __future__ import annotations
+
+from pathlib import Path
+
+from pydantic import Field
+from pydantic_settings import BaseSettings, SettingsConfigDict
+
+# Repo root: …/DocCite (parent of `src/`)
+REPO_ROOT = Path(__file__).resolve().parent.parent
+
+
+class Settings(BaseSettings):
+    """Runtime configuration for DocCite.
+
+    Values come from environment variables or a `.env` file at the repo root.
+    Field names map to UPPER_SNAKE env vars (e.g. `openai_api_key` → OPENAI_API_KEY).
+    """
+
+    model_config = SettingsConfigDict(
+        env_file=str(REPO_ROOT / ".env"),
+        env_file_encoding="utf-8",
+        extra="ignore",
+    )
+
+    openai_api_key: str = Field(default="", description="OpenAI API key")
+    openai_embedding_model: str = "text-embedding-3-small"
+    openai_chat_model: str = "gpt-4o-mini"
+
+    chunk_size: int = 800
+    chunk_overlap: int = 150
+    retrieve_top_k: int = 6
+    similarity_threshold: float = 0.25
+
+    data_dir: Path = REPO_ROOT / "data"
+    chroma_dir: Path = REPO_ROOT / "data" / "chroma"
+    upload_dir: Path = REPO_ROOT / "data" / "uploads"
+    collection_name: str = "doccite_mvp"
+
+    def model_post_init(self, __context: object) -> None:
+        """Resolve relative paths against the repo root (not the shell cwd)."""
+        self.data_dir = _resolve_path(self.data_dir)
+        self.chroma_dir = _resolve_path(self.chroma_dir)
+        self.upload_dir = _resolve_path(self.upload_dir)
+
+    def ensure_data_dirs(self) -> None:
+        """Create local data folders if missing (uploads, chroma, data root)."""
+        self.data_dir.mkdir(parents=True, exist_ok=True)
+        self.chroma_dir.mkdir(parents=True, exist_ok=True)
+        self.upload_dir.mkdir(parents=True, exist_ok=True)
+
+
+def _resolve_path(path: Path) -> Path:
+    if path.is_absolute():
+        return path
+    return (REPO_ROOT / path).resolve()
+
+
+settings = Settings()
+settings.ensure_data_dirs()

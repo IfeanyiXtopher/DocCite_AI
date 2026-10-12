@@ -28,8 +28,9 @@ cp .env.example .env              # then paste OPENAI_API_KEY into .env
 pip install -r requirements.txt
 ```
 
-Until Step 1 is done, `requirements.txt` is a placeholder and imports will not
-fully work yet.
+Exact installed versions are recorded in `requirements.lock.txt` (from
+`pip freeze`). Prefer `pip install -r requirements.txt` for setup; use the lock
+file if you need a bit-for-bit match.
 
 ## Run (filled in as we build)
 

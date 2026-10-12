@@ -31,10 +31,8 @@ Product rules that every later step obeys (see `APPROACH.md` §1.2–1.4):
 
 ## Current position
 
-> **Step 0 — Scope and repository foundation: `[x]` done** (Verify below).
-> Next: **Step 1 — Toolchain, config, and domain models.**
-> Reminder: `OPENAI_API_KEY` is still empty in `.env` — fine for Step 1; required
-> before live OpenAI calls in Step 2.
+> **Step 1 — Toolchain, config, and domain models: `[x]` done.**
+> Next: **Step 2 — Ingest one PDF end-to-end (CLI).**
 
 ## Prerequisites on the developer machine
 
@@ -45,31 +43,23 @@ action still needed from you.
 | --- | --- | --- | --- |
 | Python 3.11+ | Language for the whole app (ingest, RAG, CLI, later API) | Step 1 | `[x]` 3.12.0 |
 | `pip` + `venv` | Install packages into an isolated project environment | Step 1 | `[x]` pip 23.2.1 + venv ok |
-| OpenAI API key | Embeddings + chat LLM (live path) | Step 2+ | `[!]` **you must paste into `.env`** — file exists but `OPENAI_API_KEY` is empty |
-| Git | Version history; Step 0 init | Step 0 | `[x]` 2.52.0 (repo not initialized yet — that is a Step 0 task) |
+| OpenAI API key | Embeddings + chat LLM (live path) | Step 2+ | `[x]` present in `.env` (verified length; value never logged) |
+| Git | Version history; Step 0 init | Step 0 | `[x]` 2.52.0 — repo on `main`, first commit done |
 | Docker | Optional later (Compose / purge worker) | Step 7+ | `[x]` 29.4 — not needed for Steps 0–6 |
 | Node 20+ | Optional later React UI | Step 8 | `[x]` 24.15 — not needed for Streamlit MVP |
-| Streamlit | Upload + chat UI | Step 5 | `[ ]` installs with `requirements.txt` in Step 1 |
+| Streamlit | Upload + chat UI | Step 5 | `[x]` installed in project `venv` (Step 1) |
 | `.gitignore` | Keeps `.env` and `data/` out of git | Step 0 | `[x]` added |
 | `.env.example` | Template of required keys (no secrets) | Step 0 | `[x]` added |
-| `.env` | Your real secrets + local settings | Step 1–2 | `[~]` template written; **key still missing** |
+| `.env` | Your real secrets + local settings | Step 1–2 | `[x]` key set; file gitignored |
 
-### What you need to do for Prerequisites (only blocker)
+### Prerequisites checklist
 
-1. Open [platform.openai.com/api-keys](https://platform.openai.com/api-keys) (or
-   your existing key).
-2. Put it in `/Users/wyreenergy/DocCite/.env` on this line:
+- `[x]` Tools on machine (Python, pip/venv, Git, Docker, Node)
+- `[x]` `.gitignore`, `.env.example`, `.env` with `OPENAI_API_KEY`
+- `[x]` Project `venv` + `pip install -r requirements.txt`
 
-   ```
-   OPENAI_API_KEY=sk-...your key...
-   ```
-
-3. Save the file. Do **not** paste the key into chat, commits, or screenshots.
-4. Tell me “key is in `.env`” (no need to show the value). I will verify only
-   that the variable is non-empty.
-
-Optional later (not blockers now): OpenAI billing/credits so embed + chat calls
-succeed; Docker Desktop running only when we reach Compose jobs.
+Optional later: OpenAI billing/credits so embed + chat calls succeed; Docker
+Desktop running only when we reach Compose jobs.
 
 ### Mental model (learning)
 
@@ -121,28 +111,30 @@ branch is `main`.
 
 ---
 
-## Step 1 — Toolchain, config, and domain models `[ ]`
+## Step 1 — Toolchain, config, and domain models `[x]`
 
 **Goal.** Empty app that imports, loads typed settings from `.env`, and defines
 the pydantic/dataclass types used everywhere. No Streamlit, no OpenAI calls yet.
 
-1. `[ ]` 1.1 Create `venv`, activate, write `requirements.txt` (names from
+1. `[x]` 1.1 Create `venv`, activate, write `requirements.txt` (names from
    `APPROACH.md` §2.2), `pip install -r requirements.txt`. Pin versions with
-   `pip freeze` once install succeeds.
-2. `[ ]` 1.2 `src/config.py` via `pydantic-settings`: `OPENAI_*`, chunk sizes,
+   `pip freeze` → `requirements.lock.txt`.
+2. `[x]` 1.2 `src/config.py` via `pydantic-settings`: `OPENAI_*`, chunk sizes,
    `RETRIEVE_TOP_K`, `SIMILARITY_THRESHOLD`, `DATA_DIR`, `CHROMA_DIR`,
-   `UPLOAD_DIR`, `COLLECTION_NAME`. Ensure `data/` dirs exist on load or via
-   a small helper.
-3. `[ ]` 1.3 `src/logging_setup.py` — INFO default; no full document text at INFO.
-4. `[ ]` 1.4 `src/models.py` — `Document`, `Chunk`, `Citation`, `Answer` per
-   `APPROACH.md` §4 (leave `owner_id` optional / unused until Step 7).
-5. `[ ]` 1.5 Smoke: `python -c "from src.config import settings; print(settings.collection_name)"`.
+   `UPLOAD_DIR`, `COLLECTION_NAME`. Ensures `data/` dirs; resolves relative
+   paths against the repo root.
+3. `[x]` 1.3 `src/logging_setup.py` — INFO default; no full document text at INFO.
+4. `[x]` 1.4 `src/models.py` — `Document`, `Chunk`, `Citation`, `Answer` per
+   `APPROACH.md` §4 (`owner_id` optional until Step 7).
+5. `[x]` 1.5 Smoke: `python -c "from src.config import settings; print(settings.collection_name)"`.
 
-**Artifact.** Working venv, `requirements.txt`, `src/config.py`,
-`src/logging_setup.py`, `src/models.py`.
+**Artifact.** Working `venv/`, `requirements.txt`, `requirements.lock.txt`,
+`src/config.py`, `src/logging_setup.py`, `src/models.py`.
 
-**Verify.** Smoke import prints `doccite_mvp` (or configured collection name);
-settings read from `.env` without committing secrets.
+**Verify.** Passed 2026-10-11: prints `doccite_mvp`; `key_loaded: True`;
+`data/uploads` and `data/chroma` exist; models + logging import cleanly.
+First `pip install` hit a network drop on `kubernetes`; retry with
+`--resume-retries 20` succeeded. `.env` remains gitignored.
 
 **Do not start Streamlit or ingest yet.**
 
@@ -436,6 +428,8 @@ without its own Verify.
 | 2026-10-11 | 0 | `APPROACH.md` written (product rules, stack, pipelines, guest TTL vs logged-in persistence, Phase 6 backend outline). `docs/BUILD_PLAN.md` created as progress tracker. Repo still skeleton-only otherwise. |
 | 2026-10-11 | Prerequisites | Verified Python 3.12, pip/venv, Git, Docker, Node. Added `.gitignore`, `.env.example`, and `.env` template. **Blocked on user pasting `OPENAI_API_KEY` into `.env`** (file was empty). |
 | 2026-10-11 | 0 | Git init (`main`), package layout + placeholders, `README.md`, `docs/adr/0001-stack.md`. Verify passed. `OPENAI_API_KEY` still empty (ok until Step 2). No commit yet — ask before first commit. |
+| 2026-10-11 | 0 | First commit `d4d852c` (`.env` excluded). User confirmed OpenAI key in `.env`. |
+| 2026-10-11 | 1 | `venv` + deps installed (`requirements.lock.txt`); `config` / `logging_setup` / `models` implemented. Smoke: `doccite_mvp`, key loaded, data dirs created. |
 
 ---
 
