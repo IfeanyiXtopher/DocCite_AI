@@ -1,0 +1,10 @@
+[theme]
+# Matches assets/brand teal / navy lockup
+primaryColor = "#1A6B7A"
+backgroundColor = "#F5F6F8"
+secondaryBackgroundColor = "#E4EEF0"
+textColor = "#1A365D"
+font = "sans serif"
+
+[server]
+headless = true

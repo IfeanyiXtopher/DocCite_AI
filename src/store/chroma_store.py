@@ -48,10 +48,16 @@ class ChromaStore:
             api_key=settings.openai_api_key,
         )
 
-    def count(self, *, owner_id: str | None = None) -> int:
-        if not owner_id:
+    def count(
+        self,
+        *,
+        owner_id: str | None = None,
+        doc_ids: list[str] | None = None,
+    ) -> int:
+        where = _owner_doc_where(owner_id=owner_id, doc_ids=doc_ids)
+        if where is None:
             return int(self._collection.count())
-        result = self._collection.get(where={"owner_id": owner_id}, include=[])
+        result = self._collection.get(where=where, include=[])
         return len(result.get("ids") or [])
 
     def add_chunks(self, chunks: list[Chunk], *, owner_id: str | None = None) -> None:
@@ -82,19 +88,21 @@ class ChromaStore:
         k: Optional[int] = None,
         *,
         owner_id: str | None = None,
+        doc_ids: list[str] | None = None,
     ) -> list[QueryHit]:
         k = k if k is not None else settings.retrieve_top_k
-        owner_count = self.count(owner_id=owner_id) if owner_id else self.count()
-        if owner_count == 0:
+        scoped = self.count(owner_id=owner_id, doc_ids=doc_ids)
+        if scoped == 0:
             return []
         vector = self._embeddings.embed_query(query_text)
         kwargs: dict[str, Any] = {
             "query_embeddings": [vector],
-            "n_results": min(k, owner_count),
+            "n_results": min(k, scoped),
             "include": ["documents", "metadatas", "distances"],
         }
-        if owner_id:
-            kwargs["where"] = {"owner_id": owner_id}
+        where = _owner_doc_where(owner_id=owner_id, doc_ids=doc_ids)
+        if where is not None:
+            kwargs["where"] = where
         result = self._collection.query(**kwargs)
         hits: list[QueryHit] = []
         ids = result.get("ids", [[]])[0]
@@ -177,3 +185,25 @@ def page_from_metadata(meta: dict[str, Any]) -> int | None:
         return None
     page = meta.get("page")
     return int(page) if page is not None else None
+
+
+def _owner_doc_where(
+    *,
+    owner_id: str | None = None,
+    doc_ids: list[str] | None = None,
+) -> dict[str, Any] | None:
+    """Build a Chroma `where` filter for owner and/or document ids."""
+    ids = [d for d in (doc_ids or []) if d]
+    clauses: list[dict[str, Any]] = []
+    if owner_id:
+        clauses.append({"owner_id": owner_id})
+    if ids:
+        if len(ids) == 1:
+            clauses.append({"doc_id": ids[0]})
+        else:
+            clauses.append({"doc_id": {"$in": ids}})
+    if not clauses:
+        return None
+    if len(clauses) == 1:
+        return clauses[0]
+    return {"$and": clauses}

@@ -2,9 +2,44 @@
 
 from __future__ import annotations
 
-from typing import Any
+from pathlib import Path
+from typing import Any, Literal
 
 from src.models import Answer, Citation, Document
+
+REPO_ROOT = Path(__file__).resolve().parent.parent.parent
+BRAND_DIR = REPO_ROOT / "assets" / "brand"
+LOGO_LIGHT = BRAND_DIR / "logo-light.jpeg"
+LOGO_DARK = BRAND_DIR / "logo-dark.jpeg"
+
+ThemeName = Literal["light", "dark"]
+
+
+def detect_theme() -> ThemeName:
+    """Best-effort Streamlit theme (light/dark). Defaults to light."""
+    try:
+        import streamlit as st
+
+        theme = getattr(st.context, "theme", None)
+        theme_type = getattr(theme, "type", None)
+        if theme_type in ("light", "dark"):
+            return theme_type  # type: ignore[return-value]
+    except Exception:  # noqa: BLE001
+        pass
+    return "light"
+
+
+def logo_path(theme: ThemeName | None = None) -> Path:
+    """Return the brand logo file for the active (or given) theme."""
+    theme = theme or detect_theme()
+    path = LOGO_DARK if theme == "dark" else LOGO_LIGHT
+    if path.is_file():
+        return path
+    # Fallback if one asset is missing
+    for candidate in (LOGO_LIGHT, LOGO_DARK):
+        if candidate.is_file():
+            return candidate
+    return path
 
 
 def format_doc_row(doc: Document) -> str:

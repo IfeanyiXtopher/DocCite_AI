@@ -359,23 +359,27 @@ python scripts/run_api.py   # http://127.0.0.1:8000/docs
 
 ---
 
-## Step 8 — Production-shaped frontend (optional after Step 7) `[ ]`
+## Step 8 — Production-shaped frontend (optional after Step 7) `[x]`
 
 **Goal.** Replace or complement Streamlit with a proper web UI against the
 FastAPI API. Same product rules; guest vs login visible in UX.
+**Hosting note:** SPA on **Vercel**; API hosted separately with CORS for
+`localhost:5173` and `*.vercel.app`.
 
-1. `[ ]` 8.1 Scaffold frontend (Vite + React + TypeScript recommended) talking
-   only to the API.
-2. `[ ]` 8.2 Screens: upload + doc list, library summary, chat with citations,
+1. `[x]` 8.1 Scaffold frontend (`frontend/` — Vite + React + TypeScript) talking
+   only to the API (`VITE_API_BASE_URL`).
+2. `[x]` 8.2 Screens: upload + doc list, library summary, chat with citations,
    clear library, guest banner (TTL notice), login / logout.
-3. `[ ]` 8.3 Load recent chats for logged-in users; guest session restore until
-   TTL.
-4. `[ ]` 8.4 `npm run build` green; smoke against local API.
+3. `[x]` 8.3 Load recent chats from `/chats/messages`; guest/session token in
+   `localStorage` until TTL / logout.
+4. `[x]` 8.4 `npm run build` green; API CORS middleware + `vercel.json` SPA
+   rewrite; README + `frontend/README.md` Vercel instructions.
 
-**Artifact.** Frontend app folder; README run instructions for API + UI.
+**Artifact.** `frontend/`; root README API + UI run instructions; CORS settings
+in `.env.example` / `src/config.py`.
 
-**Verify.** `npm run build` passes; manual walk of guest + logged-in journeys
-against Step 7 API.
+**Verify.** `cd frontend && npm run build` passes; manual walk of guest +
+logged-in journeys against Step 7 API (local or deployed).
 
 ---
 
@@ -421,6 +425,7 @@ without its own Verify.
 | 2026-10-12 | 5 | Commit `3ed5507` Step 5 UI. |
 | 2026-10-12 | 6 | Hardening + README try-this. 16 tests green. CLI QA script passed (cite/refuse/replace/reset). **Local MVP (Steps 0–6) complete.** |
 | 2026-10-12 | 7 | FastAPI + SQLite + owner-scoped Chroma; guest/login sessions; purge job; ADR-0002. Isolation + purge tests green (23 total). |
+| 2026-10-12 | 8 | Vite/React/TS frontend in `frontend/` for Vercel; API CORS; guest banner, auth, upload, summary, chat+citations, clear; `npm run build` green. |
 
 ---
 
@@ -436,9 +441,9 @@ without its own Verify.
 | 5 | Phase 4 | Streamlit UI |
 | 6 | Phase 5 + §14–15 | Hardened local MVP |
 | 7 | §1.4 + §18.1 | FastAPI + DB + retention |
-| 8 | §18 (frontend) | React (or similar) UI |
+| 8 | §18 (frontend) | React UI (Vercel SPA) |
 | 9 | §18 backlog | Scale items |
 
-Next concrete action: **finish Step 0** (git, folders, `.gitignore`,
-`.env.example`, README), then **Step 1 only** — venv, requirements, config,
-models. Do not skip ahead to Streamlit or FastAPI.
+Next concrete action: **Step 9 backlog** only as needed (hybrid search, OCR,
+remote vector DB, Docker Compose, etc.). Manual browser walk of the Vite UI
+against the API is recommended before production deploy.

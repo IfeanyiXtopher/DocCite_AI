@@ -2,7 +2,13 @@
 
 from __future__ import annotations
 
-from src.rag.retrieve import RetrieveResult, _passes_threshold, retrieve
+from src.rag.retrieve import (
+    RetrieveResult,
+    _expand_query,
+    _matches_contact_need,
+    _passes_threshold,
+    retrieve,
+)
 from src.store.chroma_store import QueryHit
 
 
@@ -10,11 +16,13 @@ class FakeStore:
     def __init__(self, hits: list[QueryHit], count: int | None = None) -> None:
         self._hits = hits
         self._count = len(hits) if count is None else count
+        self.last_k: int | None = None
 
     def count(self) -> int:
         return self._count
 
     def query(self, query_text: str, k: int | None = None) -> list[QueryHit]:
+        self.last_k = k
         return list(self._hits)
 
 
@@ -52,3 +60,34 @@ def test_retrieve_empty_collection() -> None:
     result = retrieve("q", store=store)  # type: ignore[arg-type]
     assert result.collection_empty is True
     assert result.hits == []
+
+
+def test_expand_query_for_phone() -> None:
+    expanded = _expand_query("what is his phone number")
+    assert "telephone" in expanded.lower()
+    assert _expand_query("where did he school") == "where did he school"
+
+
+def test_contact_boost_prefers_phone_chunk() -> None:
+    """Phone may appear as +234… without the word 'phone' in the CV."""
+    contact = QueryHit(
+        chunk_id="cv:0",
+        text="Lagos, Nigeria | +234 803 274 6255 | name@email.com",
+        metadata={"filename": "cv.pdf", "page": 1, "has_page": True},
+        score=0.55,  # weaker semantic score
+    )
+    other = QueryHit(
+        chunk_id="cv:1",
+        text="Led backend delivery for an energy platform.",
+        metadata={"filename": "cv.pdf", "page": 1, "has_page": True},
+        score=0.20,
+    )
+    store = FakeStore([other, contact])
+    result = retrieve(
+        "what is his phone number",
+        store=store,  # type: ignore[arg-type]
+        min_similarity=0.25,
+    )
+    assert result.hits[0].chunk_id == "cv:0"
+    assert _matches_contact_need("phone number", contact.text) is True
+    assert store.last_k is not None and store.last_k >= 12

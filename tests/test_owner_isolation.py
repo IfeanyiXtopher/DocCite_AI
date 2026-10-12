@@ -46,12 +46,12 @@ def test_guest_sessions_are_isolated(api_client: TestClient, tmp_path: Path, mon
         added.setdefault(owner_id, [])
         added[owner_id].extend([c.chunk_id for c in chunks])
 
-    def fake_count(self, *, owner_id=None):  # noqa: ANN001
+    def fake_count(self, *, owner_id=None, doc_ids=None):  # noqa: ANN001
         if owner_id is None:
             return sum(len(v) for v in added.values())
         return len(added.get(owner_id, []))
 
-    def fake_query(self, query_text, k=None, *, owner_id=None):  # noqa: ANN001
+    def fake_query(self, query_text, k=None, *, owner_id=None, doc_ids=None):  # noqa: ANN001
         from src.store.chroma_store import QueryHit
 
         if not owner_id or owner_id not in added:
@@ -101,15 +101,20 @@ def test_guest_sessions_are_isolated(api_client: TestClient, tmp_path: Path, mon
     assert docs2.status_code == 200
     assert docs2.json() == []
 
-    # Guest2 ask should not see guest1 chunks (empty retrieval → refusal or upload first path)
+    # Guest2 cannot ask without attaching docs to a chat
+    thread2 = api_client.post(
+        "/chats/threads",
+        headers={"X-DocCite-Session": g2["token"]},
+    ).json()
     ask2 = api_client.post(
         "/ask",
         headers={"X-DocCite-Session": g2["token"]},
-        json={"question": "GUEST-ONE-TOKEN"},
+        json={"question": "GUEST-ONE-TOKEN", "thread_id": thread2["id"]},
     )
-    assert ask2.status_code == 200
+    assert ask2.status_code == 200, ask2.text
     body = ask2.json()["answer"]
     assert body["refused"] is True
+    assert "attach" in body["text"].lower()
 
 
 def test_logged_in_clear_only_own_data(api_client: TestClient, tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
@@ -118,7 +123,7 @@ def test_logged_in_clear_only_own_data(api_client: TestClient, tmp_path: Path, m
     def fake_add(self, chunks, *, owner_id=None):  # noqa: ANN001
         store_data[owner_id] = store_data.get(owner_id, 0) + len(chunks)
 
-    def fake_count(self, *, owner_id=None):  # noqa: ANN001
+    def fake_count(self, *, owner_id=None, doc_ids=None):  # noqa: ANN001
         if owner_id is None:
             return sum(store_data.values())
         return store_data.get(owner_id, 0)

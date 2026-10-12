@@ -27,6 +27,8 @@ class Settings(BaseSettings):
     openai_api_key: str = Field(default="", description="OpenAI API key")
     openai_embedding_model: str = "text-embedding-3-small"
     openai_chat_model: str = "gpt-4o-mini"
+    # Speech-to-text: gpt-4o-mini-transcribe | gpt-4o-transcribe | whisper-1
+    openai_transcribe_model: str = "gpt-4o-mini-transcribe"
 
     chunk_size: int = 800
     chunk_overlap: int = 150
@@ -44,6 +46,12 @@ class Settings(BaseSettings):
     auth_secret: str = "dev-change-me"
     api_host: str = "127.0.0.1"
     api_port: int = 8000
+    # Comma-separated browser origins (Vite local + Vercel). Empty = deny cross-origin.
+    cors_origins: str = (
+        "http://localhost:5173,http://127.0.0.1:5173"
+    )
+    # Optional regex for preview deploys, e.g. https://.*\\.vercel\\.app
+    cors_origin_regex: str = r"https://.*\.vercel\.app"
 
     def model_post_init(self, __context: object) -> None:
         """Resolve relative paths against the repo root (not the shell cwd)."""

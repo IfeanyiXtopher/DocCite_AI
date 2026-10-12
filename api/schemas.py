@@ -41,9 +41,14 @@ class SummaryOut(BaseModel):
     library_hash: str
 
 
+class TranscribeOut(BaseModel):
+    text: str
+    model: str
+
+
 class AskIn(BaseModel):
     question: str
-    thread_id: Optional[str] = None
+    thread_id: str
 
 
 class AskOut(BaseModel):
@@ -60,6 +65,17 @@ class ChatMessageOut(BaseModel):
     refused: Optional[bool]
 
 
+class ThreadOut(BaseModel):
+    id: str
+    title: str
+    updated_at: str
+    document_ids: list[str] = Field(default_factory=list)
+
+
+class AttachDocsIn(BaseModel):
+    doc_ids: list[str] = Field(min_length=1)
+
+
 class ClearOut(BaseModel):
     documents_removed: int
     chroma_remaining: int
@@ -74,4 +90,13 @@ class MeOut(BaseModel):
     owner_id: str
     is_guest: bool
     email: Optional[str] = None
+    display_name: Optional[str] = None
+    title: Optional[str] = None
+    company: Optional[str] = None
     guest_notice: Optional[str] = None
+
+
+class ProfileUpdateIn(BaseModel):
+    display_name: Optional[str] = Field(default=None, max_length=120)
+    title: Optional[str] = Field(default=None, max_length=160)
+    company: Optional[str] = Field(default=None, max_length=160)

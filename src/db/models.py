@@ -30,6 +30,9 @@ class User(Base):
     id: Mapped[str] = mapped_column(String(36), primary_key=True)
     email: Mapped[str] = mapped_column(String(320), unique=True, index=True)
     password_hash: Mapped[str] = mapped_column(String(255))
+    display_name: Mapped[str | None] = mapped_column(String(120), nullable=True)
+    title: Mapped[str | None] = mapped_column(String(160), nullable=True)
+    company: Mapped[str | None] = mapped_column(String(160), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utcnow)
 
     sessions: Mapped[list[Session]] = relationship(back_populates="user")
@@ -82,6 +85,30 @@ class ChatThread(Base):
     messages: Mapped[list[ChatMessage]] = relationship(
         back_populates="thread", cascade="all, delete-orphan"
     )
+    documents: Mapped[list[ChatThreadDocument]] = relationship(
+        back_populates="thread", cascade="all, delete-orphan"
+    )
+
+
+class ChatThreadDocument(Base):
+    """Documents attached to a specific chat thread."""
+
+    __tablename__ = "chat_thread_documents"
+    __table_args__ = (
+        UniqueConstraint("thread_id", "doc_id", name="uq_thread_doc"),
+    )
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    thread_id: Mapped[str] = mapped_column(
+        ForeignKey("chat_threads.id", ondelete="CASCADE"), index=True
+    )
+    doc_id: Mapped[str] = mapped_column(
+        ForeignKey("documents.id", ondelete="CASCADE"), index=True
+    )
+    owner_id: Mapped[str] = mapped_column(String(80), index=True)
+    attached_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utcnow)
+
+    thread: Mapped[ChatThread] = relationship(back_populates="documents")
 
 
 class ChatMessage(Base):
@@ -104,5 +131,19 @@ class LibrarySummary(Base):
 
     owner_id: Mapped[str] = mapped_column(String(80), primary_key=True)
     library_hash: Mapped[str] = mapped_column(String(64), default="")
+    text: Mapped[str] = mapped_column(Text, default="")
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utcnow)
+
+
+class DocumentSummary(Base):
+    """Cached per-document summary (keyed by document id)."""
+
+    __tablename__ = "document_summaries"
+
+    doc_id: Mapped[str] = mapped_column(
+        ForeignKey("documents.id", ondelete="CASCADE"), primary_key=True
+    )
+    owner_id: Mapped[str] = mapped_column(String(80), index=True)
+    content_hash: Mapped[str] = mapped_column(String(64), default="")
     text: Mapped[str] = mapped_column(Text, default="")
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utcnow)

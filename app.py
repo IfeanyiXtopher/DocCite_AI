@@ -22,15 +22,51 @@ from src.store.reset import reset_library
 from src.ui.helpers import (
     answer_to_message,
     citation_lines,
+    detect_theme,
     format_doc_row,
+    logo_path,
     safe_error_message,
 )
 
 setup_logging()
 
-st.set_page_config(page_title="DocCite", page_icon="📄", layout="wide")
+_PAGE_ICON = logo_path("light")
+st.set_page_config(
+    page_title="DocCite",
+    page_icon=str(_PAGE_ICON) if _PAGE_ICON.is_file() else "📄",
+    layout="wide",
+    initial_sidebar_state="expanded",
+)
 
 MAX_CHAT_MESSAGES = 40  # keep last N messages in the transcript
+
+# Teal / navy accents aligned with assets/brand logos
+_BRAND_CSS = """
+<style>
+  .block-container { padding-top: 1rem; }
+  [data-testid="stSidebar"] {
+    border-right: 1px solid rgba(26, 107, 122, 0.18);
+  }
+  [data-testid="stSidebar"] [data-testid="stImage"] {
+    margin-bottom: 0.5rem;
+  }
+  div.stButton > button[kind="primary"] {
+    background-color: #1A6B7A;
+    border-color: #1A6B7A;
+  }
+  div.stButton > button[kind="primary"]:hover {
+    background-color: #155867;
+    border-color: #155867;
+  }
+  .doccite-hero {
+    display: flex;
+    justify-content: center;
+    margin: 0 auto 0.75rem auto;
+    max-width: 420px;
+  }
+  .doccite-hero img { width: 100%; height: auto; }
+</style>
+"""
 
 
 def _init_state() -> None:
@@ -90,13 +126,22 @@ def _render_citations(raw_citations: list[dict]) -> None:
             st.markdown(line)
 
 
+def _render_brand() -> None:
+    """Theme-aware logo (lockup already includes name + tagline)."""
+    st.markdown(_BRAND_CSS, unsafe_allow_html=True)
+    path = logo_path(detect_theme())
+    if path.is_file():
+        _, mid, _ = st.columns([1, 2, 1])
+        with mid:
+            st.image(str(path), use_container_width=True)
+    else:
+        st.title("DocCite")
+        st.caption("AI-Powered Verified Citations from Your Documents")
+
+
 def main() -> None:
     _init_state()
-
-    st.title("DocCite")
-    st.caption(
-        "Ask questions answered only from your uploaded documents — with citations."
-    )
+    _render_brand()
 
     # ----- Sidebar -----
     with st.sidebar:
@@ -151,7 +196,6 @@ def main() -> None:
 
     # ----- Main: chat -----
     st.subheader("Chat")
-    # Cap display
     visible = st.session_state.chat[-MAX_CHAT_MESSAGES:]
     for msg in visible:
         with st.chat_message(msg["role"]):

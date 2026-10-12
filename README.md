@@ -1,9 +1,15 @@
 # DocCite
 
+<p align="center">
+  <img src="assets/brand/logo-light.jpeg" alt="DocCite" width="360" />
+</p>
+
 **DocCite** lets you upload documents (PDF, DOCX, TXT, MD), get a short library
 summary, and ask questions answered **only** from those files — with citations
 (filename, page when available, short quote). If the answer is not in your
 uploads, the app refuses instead of guessing.
+
+Brand assets (light / dark): [`assets/brand/`](assets/brand/).
 
 ## Where to start
 
@@ -102,9 +108,30 @@ python scripts/purge_guests.py
 
 Streamlit remains the local single-user demo. Multi-user clients should use the API.
 
+## Frontend (Step 8 — Vercel)
+
+Vite + React + TypeScript in [`frontend/`](frontend/). Talks only to the FastAPI
+API. Deploy the SPA on Vercel; host the API elsewhere.
+
+```bash
+# Terminal 1 — API
+source venv/bin/activate
+python scripts/run_api.py
+
+# Terminal 2 — UI
+cd frontend
+npm install
+npm run dev          # http://localhost:5173
+```
+
+**Vercel:** set project Root Directory to `frontend`, add env
+`VITE_API_BASE_URL=<public API URL>`, and allow that origin on the API via
+`CORS_ORIGINS` / `CORS_ORIGIN_REGEX` (see `.env.example` and
+[`frontend/README.md`](frontend/README.md)).
+
 ## Product direction (short)
 
 - **Steps 0–6:** local single-user MVP (Streamlit + Chroma on disk).
 - **Step 7:** FastAPI + SQLite; **guests** auto-cleared after inactivity;
   **logged-in** data stays until the user clears it.
-- **Step 8+:** production-shaped frontend against the API.
+- **Step 8:** React frontend (Vercel) against the API.
