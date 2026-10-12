@@ -31,8 +31,8 @@ Product rules that every later step obeys (see `APPROACH.md` §1.2–1.4):
 
 ## Current position
 
-> **Step 2 — Ingest one PDF end-to-end (CLI): `[x]` done.**
-> Next: **Step 3 — Ask one question (CLI).**
+> **Step 3 — Ask one question (CLI): `[x]` done.**
+> Next: **Step 4 — Multi-file library, summary, reset.**
 
 ## Prerequisites on the developer machine
 
@@ -179,36 +179,35 @@ Empty PDF raises `ExtractError`. Live OpenAI embeddings used for upsert.
 
 ---
 
-## Step 3 — Ask one question (CLI) `[ ]`
+## Step 3 — Ask one question (CLI) `[x]`
 
 **Goal.** Grounded answer + citations from retrieved chunks; refusal when
 unsupported. Still CLI-only.
 
-1. `[ ]` 3.1 `src/rag/retrieve.py` — embed query, top_k, scores, optional
-   `SIMILARITY_THRESHOLD`; zero hits → no chat call.
-2. `[ ]` 3.2 `src/rag/prompt.py` — system prompt (answer only from excerpts;
+1. `[x]` 3.1 `src/rag/retrieve.py` — embed query, top_k, scores; cosine
+   distance filtered with `SIMILARITY_THRESHOLD` as min similarity
+   (`distance <= 1 - threshold`); zero hits → no chat call.
+2. `[x]` 3.2 `src/rag/prompt.py` — system prompt (answer only from excerpts;
    refuse if insufficient) + context packer
    (`[Source N] file=... page=...`).
-3. `[ ]` 3.3 `src/rag/qa.py` — retrieve → generate → `Answer` with citations
-   **from hits**; `refused=True` path.
-4. `[ ]` 3.4 `scripts/ask.py` — prints answer, citations, timings, tokens.
-5. `[ ]` 3.5 Happy path on fixture PDF (in-domain question → citation page
-   correct). Out-of-domain → refusal, no fabricated citations.
-6. `[ ]` 3.6 `tests/test_retrieve.py`, `tests/test_qa_refusal.py` (mock LLM /
-   embeddings for unit tests; `@pytest.mark.integration` for live OpenAI).
+3. `[x]` 3.3 `src/rag/qa.py` — retrieve → generate → `Answer` with citations
+   **from hits**; `refused=True` path; one OpenAI retry on transient errors.
+4. `[x]` 3.4 `scripts/ask.py` — prints answer, citations, timings, tokens.
+5. `[x]` 3.5 Happy path: BRAVO-TOKEN-9 → answer + page=2 citation. Out-of-domain
+   France → refusal with `generate_ms=0` (no LLM).
+6. `[x]` 3.6 `tests/test_retrieve.py`, `tests/test_qa_refusal.py` (mocked store/LLM).
 
 **Artifact.** `scripts/ask.py`, retrieve + QA modules, refusal tests.
 
-**Verify.**
+**Verify.** Passed 2026-10-12:
 
 ```bash
-python scripts/ask.py "What does page two say about <fixture phrase>?"
-python scripts/ask.py "What is the capital of France?"   # expect refusal unless in docs
-pytest tests/test_retrieve.py tests/test_qa_refusal.py -q
+pytest tests/test_retrieve.py tests/test_qa_refusal.py -q   # 7 passed
+python scripts/ask.py "What does page two say about BRAVO-TOKEN-9?"
+python scripts/ask.py "What is the capital of France?"       # refused, no LLM
 ```
 
-Empty collection tells the user to ingest first. Logs show retrieve ms and
-generate ms. Citations match retrieved metadata.
+Empty collection → “Upload documents first.” Citations from retriever metadata.
 
 **Do not build the UI yet.**
 
@@ -432,6 +431,8 @@ without its own Verify.
 | 2026-10-11 | 1 | `venv` + deps installed (`requirements.lock.txt`); `config` / `logging_setup` / `models` implemented. Smoke: `doccite_mvp`, key loaded, data dirs created. |
 | 2026-10-12 | 1 | Commit `e859930` Step 1 toolchain. |
 | 2026-10-12 | 2 | PDF ingest path live: extract/clean/chunk/Chroma/registry + CLI. Fixture PDF with page tokens. 4 unit tests green; ingest → 2 chunks; `BRAVO-TOKEN-9` retrieves page 2; persist survives reopen. |
+| 2026-10-12 | 2 | Commit `f550de6` Step 2 PDF ingest. |
+| 2026-10-12 | 3 | Retrieve + grounded QA CLI. 7 unit tests green. Live: BRAVO question cites page 2; France refuses without LLM call. |
 
 ---
 
