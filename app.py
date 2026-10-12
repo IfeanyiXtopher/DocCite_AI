@@ -70,7 +70,7 @@ def _ingest_uploads(files) -> None:
             tmp_path = Path(tmp.name)
         try:
             with st.spinner(f"Processing {uploaded.name}…"):
-                result = ingest_file(tmp_path)
+                result = ingest_file(tmp_path, original_filename=uploaded.name)
             doc = result.document
             notes.append(f"✓ {doc.filename} → {doc.status} ({doc.chunk_count} chunks)")
         except Exception as exc:  # noqa: BLE001

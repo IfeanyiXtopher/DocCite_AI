@@ -57,10 +57,15 @@ def _remove_existing_by_filename(filename: str, store: chroma_mod.ChromaStore) -
     registry.delete_document(existing.doc_id)
 
 
-def ingest_file(source_path: Path | str) -> IngestResult:
+def ingest_file(
+    source_path: Path | str,
+    *,
+    original_filename: str | None = None,
+) -> IngestResult:
     """Ingest a single file into Chroma + registry.
 
     Duplicate filename replaces the previous document. All-or-nothing per doc_id.
+    ``original_filename`` preserves the user's name when ingesting from a temp path.
     """
     source_path = Path(source_path)
     settings.ensure_data_dirs()
@@ -72,7 +77,7 @@ def ingest_file(source_path: Path | str) -> IngestResult:
     if size > MAX_FILE_BYTES:
         raise ValueError(f"File exceeds 25 MB limit ({size} bytes).")
 
-    filename = _safe_filename(source_path.name)
+    filename = _safe_filename(original_filename or source_path.name)
     doc_id = str(uuid.uuid4())
     stored_path = settings.upload_dir / f"{doc_id}_{filename}"
 

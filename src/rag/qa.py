@@ -11,6 +11,7 @@ from openai import APIConnectionError, APIStatusError, APITimeoutError, RateLimi
 
 from src.config import settings
 from src.models import Answer, Citation
+from src.rag.chitchat import chitchat_reply, is_chitchat
 from src.rag.prompt import REFUSAL_TEXT, SYSTEM_PROMPT, build_user_message
 from src.rag.retrieve import retrieve
 from src.store.chroma_store import ChromaStore, QueryHit, page_from_metadata
@@ -85,6 +86,21 @@ def answer(
 
     latency: dict[str, Any] = {}
     t0 = time.perf_counter()
+
+    # Thanks / "okay good" / greetings — polite reply, no retrieval, no refusal.
+    if is_chitchat(q):
+        latency["retrieve"] = 0
+        latency["generate"] = 0
+        latency["total"] = round((time.perf_counter() - t0) * 1000)
+        logger.info("qa chitchat=True text=%r", q[:80])
+        return Answer(
+            text=chitchat_reply(q),
+            citations=[],
+            refused=False,
+            retrieved_chunk_ids=[],
+            model="chitchat",
+            latency_ms=latency,
+        )
 
     t_ret = time.perf_counter()
     result = retrieve(q, store=store)
