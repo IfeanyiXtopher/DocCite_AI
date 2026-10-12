@@ -36,7 +36,7 @@ file if you need a bit-for-bit match.
 
 | When | Command |
 | --- | --- |
-| Step 2+ | `python scripts/ingest.py path/to/file.pdf` |
+| Step 2+ | `python scripts/ingest.py tests/fixtures/two_page_fixture.pdf` |
 | Step 3+ | `python scripts/ask.py "Your question?"` |
 | Step 4+ | `python scripts/summarize.py` / `python scripts/reset.py` |
 | Step 5+ | `streamlit run app.py` |

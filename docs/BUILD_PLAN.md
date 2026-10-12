@@ -31,8 +31,8 @@ Product rules that every later step obeys (see `APPROACH.md` §1.2–1.4):
 
 ## Current position
 
-> **Step 1 — Toolchain, config, and domain models: `[x]` done.**
-> Next: **Step 2 — Ingest one PDF end-to-end (CLI).**
+> **Step 2 — Ingest one PDF end-to-end (CLI): `[x]` done.**
+> Next: **Step 3 — Ask one question (CLI).**
 
 ## Prerequisites on the developer machine
 
@@ -140,40 +140,40 @@ First `pip install` hit a network drop on `kubernetes`; retry with
 
 ---
 
-## Step 2 — Ingest one PDF end-to-end (CLI) `[ ]`
+## Step 2 — Ingest one PDF end-to-end (CLI) `[x]`
 
 **Goal.** One PDF becomes persisted Chroma chunks with page metadata. Prove
 extract → clean → chunk → embed → upsert → registry.
 
-1. `[ ]` 2.1 `src/ingest/extract.py` — PDF via PyMuPDF; 1-based pages; empty /
+1. `[x]` 2.1 `src/ingest/extract.py` — PDF via PyMuPDF; 1-based pages; empty /
    scanned-all-empty fails with a clear error (OCR out of scope).
-2. `[ ]` 2.2 `src/ingest/clean.py` — light cleanup only (`APPROACH.md` §6.4).
-3. `[ ]` 2.3 `src/ingest/chunk.py` — recursive character split (~800 / 150);
+2. `[x]` 2.2 `src/ingest/clean.py` — light cleanup only (`APPROACH.md` §6.4).
+3. `[x]` 2.3 `src/ingest/chunk.py` — recursive character split (~800 / 150);
    **per-page** PDF chunking; metadata on every chunk.
-4. `[ ]` 2.4 `src/store/chroma_store.py` — `add_chunks`, `query`, `count`,
-   persist under `data/chroma`; document page sentinel scheme once.
-5. `[ ]` 2.5 `src/store/registry.py` — JSON registry at `data/registry.json`.
-6. `[ ]` 2.6 `src/ingest/pipeline.py` — single-file path; all-or-nothing per
+4. `[x]` 2.4 `src/store/chroma_store.py` — `add_chunks`, `query`, `count`,
+   persist under `data/chroma`; page sentinel (`page=0` + `has_page=false`).
+5. `[x]` 2.5 `src/store/registry.py` — JSON registry at `data/registry.json`.
+6. `[x]` 2.6 `src/ingest/pipeline.py` — single-file path; all-or-nothing per
    `doc_id`; status `processing` → `ready` / `failed`; INFO timings.
-7. `[ ]` 2.7 `scripts/ingest.py` — `python scripts/ingest.py path/to/file.pdf`
+7. `[x]` 2.7 `scripts/ingest.py` — `python scripts/ingest.py path/to/file.pdf`
    prints `doc_id`, pages, chunks, timings.
-8. `[ ]` 2.8 `tests/fixtures/` — tiny 2-page PDF with a unique sentence on each
-   page; `tests/test_extract.py`, `tests/test_chunk.py`.
-9. `[ ]` 2.9 Manual: ingest fixture → restart Python → `count()` unchanged →
-   query unique page-2 phrase → `page==2`.
+8. `[x]` 2.8 `tests/fixtures/two_page_fixture.pdf` (ALPHA/BRAVO tokens);
+   `tests/test_extract.py`, `tests/test_chunk.py`; `scripts/make_fixture_pdf.py`.
+9. `[x]` 2.9 Manual: ingest fixture → reopen store → `count()` unchanged →
+   query `BRAVO-TOKEN-9` → `page==2`.
 
 **Artifact.** PDF ingest CLI, Chroma persistence, registry, extract/chunk tests,
 fixture PDF.
 
-**Verify.**
+**Verify.** Passed 2026-10-12:
 
 ```bash
-pytest tests/test_extract.py tests/test_chunk.py -q
-python scripts/ingest.py tests/fixtures/<fixture.pdf>
-# then a small Python one-liner or script: count() > 0; page-2 phrase retrieves page=2
+pytest tests/test_extract.py tests/test_chunk.py -q   # 4 passed
+python scripts/ingest.py tests/fixtures/two_page_fixture.pdf
+# count=2; BRAVO-TOKEN-9 → page 2; reopen count unchanged
 ```
 
-Empty PDF fails with a clear error. Persist survives process restart.
+Empty PDF raises `ExtractError`. Live OpenAI embeddings used for upsert.
 
 **Do not build Q&A or UI yet.**
 
@@ -430,6 +430,8 @@ without its own Verify.
 | 2026-10-11 | 0 | Git init (`main`), package layout + placeholders, `README.md`, `docs/adr/0001-stack.md`. Verify passed. `OPENAI_API_KEY` still empty (ok until Step 2). No commit yet — ask before first commit. |
 | 2026-10-11 | 0 | First commit `d4d852c` (`.env` excluded). User confirmed OpenAI key in `.env`. |
 | 2026-10-11 | 1 | `venv` + deps installed (`requirements.lock.txt`); `config` / `logging_setup` / `models` implemented. Smoke: `doccite_mvp`, key loaded, data dirs created. |
+| 2026-10-12 | 1 | Commit `e859930` Step 1 toolchain. |
+| 2026-10-12 | 2 | PDF ingest path live: extract/clean/chunk/Chroma/registry + CLI. Fixture PDF with page tokens. 4 unit tests green; ingest → 2 chunks; `BRAVO-TOKEN-9` retrieves page 2; persist survives reopen. |
 
 ---
 
