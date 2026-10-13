@@ -1,3 +1,4 @@
+import { useEffect, useRef } from "react";
 import type { Citation } from "../api/types";
 import type { UiMessage } from "./ChatPanel";
 
@@ -32,6 +33,22 @@ export function ChatThread({
   busy,
   busyLabel = "Searching your documents…",
 }: Props) {
+  const endRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const end = endRef.current;
+    if (!end) return;
+    const stage = end.closest(".chat-stage");
+    // Jump to latest message after ask / reply (chat-stage is the scroller).
+    requestAnimationFrame(() => {
+      if (stage instanceof HTMLElement) {
+        stage.scrollTop = stage.scrollHeight;
+      } else {
+        end.scrollIntoView({ behavior: "smooth", block: "end" });
+      }
+    });
+  }, [messages, busy]);
+
   return (
     <div className="thread" aria-live="polite">
       {messages.map((m) => (
@@ -60,6 +77,7 @@ export function ChatThread({
           </div>
         </article>
       ) : null}
+      <div ref={endRef} className="thread-end" aria-hidden="true" />
     </div>
   );
 }

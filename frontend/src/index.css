@@ -844,7 +844,12 @@ textarea {
   display: flex;
   flex-direction: column;
   gap: 1.25rem;
-  padding-bottom: 1rem;
+  padding-bottom: 2rem;
+}
+
+.thread-end {
+  height: 1px;
+  flex-shrink: 0;
 }
 
 .msg {
