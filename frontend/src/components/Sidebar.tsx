@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import type { DocumentOut, MeOut, ProfileUpdate, ThreadOut } from "../api/types";
+import { lookslikeDocId } from "./Composer";
 
 type Props = {
   open: boolean;
@@ -287,10 +288,18 @@ export function Sidebar({
                             e.preventDefault();
                             e.stopPropagation();
                             e.currentTarget.classList.remove("drop-target");
-                            const id =
-                              e.dataTransfer.getData("text/plain") ||
-                              e.dataTransfer.getData("application/x-doccite-doc");
-                            if (id) void onDropDocOnThread(t.id, id.trim());
+                            const custom = e.dataTransfer
+                              .getData("application/x-doccite-doc")
+                              .trim();
+                            const plain = e.dataTransfer
+                              .getData("text/plain")
+                              .trim();
+                            const id = lookslikeDocId(custom)
+                              ? custom
+                              : lookslikeDocId(plain)
+                                ? plain
+                                : "";
+                            if (id) void onDropDocOnThread(t.id, id);
                           }}
                         >
                           <button

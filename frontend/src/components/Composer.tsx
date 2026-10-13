@@ -20,11 +20,20 @@ type Props = {
 
 const ACCEPT = ".pdf,.docx,.txt,.md,application/pdf,text/plain,text/markdown";
 
+/** Library rows set this MIME; plain text alone is not a doc id (avoids drag-selected questions). */
+const DOC_ID_RE =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+function lookslikeDocId(value: string): boolean {
+  return DOC_ID_RE.test(value.trim());
+}
+
 function readDroppedDocId(dt: DataTransfer): string | null {
-  const plain = dt.getData("text/plain")?.trim();
-  if (plain) return plain;
   const custom = dt.getData("application/x-doccite-doc")?.trim();
-  return custom || null;
+  if (custom && lookslikeDocId(custom)) return custom;
+  const plain = dt.getData("text/plain")?.trim();
+  if (plain && lookslikeDocId(plain)) return plain;
+  return null;
 }
 
 function pickRecorderMime(): string | undefined {
@@ -312,4 +321,4 @@ export function Composer({
   );
 }
 
-export { readDroppedDocId };
+export { readDroppedDocId, lookslikeDocId };
