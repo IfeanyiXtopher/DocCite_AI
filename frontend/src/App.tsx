@@ -244,14 +244,14 @@ export default function App() {
       if (readyUploaded && !messagesRef.current.some((m) => m.role === "user")) {
         const attached = await api.threadDocuments(tid);
         const lastReady = [...attached].reverse().find((d) => d.status === "ready");
-        if (lastReady) await showDocSummaryInChat(tid, lastReady);
+        if (lastReady) await showDocSummaryInChat(lastReady);
       }
     } finally {
       setBusyUpload(false);
     }
   }
 
-  async function showDocSummaryInChat(tid: string, doc: DocumentOut) {
+  async function showDocSummaryInChat(doc: DocumentOut) {
     setBusySummary(true);
     setChatError(null);
     try {
@@ -292,7 +292,7 @@ export default function App() {
       threadIdRef.current = thread.id;
       const attached = await api.attachDocuments(thread.id, [docId]);
       setThreadDocs(attached);
-      await showDocSummaryInChat(thread.id, doc);
+      await showDocSummaryInChat(doc);
       // Not a registered chat until the user asks a follow-up.
       if (me && !me.is_guest) await loadThreads();
     } catch (err) {
